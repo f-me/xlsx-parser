@@ -1,0 +1,44 @@
+Name:                xlsx-parser
+
+-- The package version. See the Haskell package versioning policy
+-- (http://www.haskell.org/haskellwiki/Package_versioning_policy) for
+-- standards guiding when and how versions should be incremented.
+Version:             0.0
+
+Synopsis:            Simple and incomplete Excel file parser
+Description:
+    This library can help you to get some data from your
+    Excel files. Small subset of xlsx format is supported.
+    TODO: add link to ECMA standard.
+
+Homepage:            https://github.com/f-me/xlsx-parser
+License:             MIT
+License-file:        LICENSE
+Author:              Tim, Max
+Maintainer:          max@formalmethods.ru
+
+
+Category:            Text
+Build-type:          Simple
+
+-- Extra files to be distributed with the package, such as examples or
+-- a README.
+-- Extra-source-files:  
+
+-- Constraint on the version of Cabal needed to build this package.
+Cabal-version:       >=1.2
+
+
+Library
+  -- Modules exported by the library.
+  -- Exposed-modules:     
+  
+  -- Packages needed in order to build this package.
+  -- Build-depends:       
+  
+  -- Modules not exported by this package.
+  -- Other-modules:       
+  
+  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
+  -- Build-tools:         
+  
