@@ -1,0 +1,11 @@
+
+TODO
+ - join rows
+ - filter columns
+ - parse styles
+ - data types: strings, numbers, dates
+
+FIXME
+ - memory leak in zip-archive: http://stackoverflow.com/questions/9226191
+ - sometimes it's wasteful to preload all sharedStrings into memory
+  - mabye we can trade several passes over zip stream for memory
