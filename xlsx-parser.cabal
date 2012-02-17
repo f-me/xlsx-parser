@@ -18,7 +18,8 @@ Author:              Tim, Max
 Maintainer:          max@formalmethods.ru
 
 
-Category:            Text
+
+Category:            Data
 Build-type:          Simple
 
 -- Extra files to be distributed with the package, such as examples or
@@ -30,11 +31,14 @@ Cabal-version:       >=1.2
 
 
 Library
-  -- Modules exported by the library.
-  -- Exposed-modules:     
+  Hs-source-dirs:    src
+  Exposed-modules:   Data.Xlsx.Parser
   
-  -- Packages needed in order to build this package.
-  -- Build-depends:       
+  Build-depends:     base, containers, transformers, bytestring, text
+                    ,conduit     == 0.2.*
+                    ,xml-types   == 0.3.*
+                    ,xml-conduit == 0.5.*
+                    ,zip-archive == 0.1.*
   
   -- Modules not exported by this package.
   -- Other-modules:       
@@ -42,3 +46,7 @@ Library
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
   
+source-repository head
+  type:     git
+  location: git://github.com/f-me/xlsx-parser.git
+
