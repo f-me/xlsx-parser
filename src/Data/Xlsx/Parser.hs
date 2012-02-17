@@ -6,6 +6,7 @@ module Data.Xlsx.Parser where
 
 import Control.Applicative
 import Control.Monad.IO.Class
+import Control.Monad (join)
 import Data.List
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -25,8 +26,7 @@ import qualified Text.XML.Stream.Parse as Xml
 data Xlsx
   = Xlsx
     {archive :: Zip.Archive
---    ,sheets :: [FilePath]
---     ,sharedStrings :: Maybe FilePath
+    ,sharedStrings :: M.IntMap Text
     }
 
 data Columns
@@ -54,24 +54,24 @@ parseConduit
 
 xlsx fname = do
   ar <- Zip.toArchive <$> L.readFile fname
-  return $ Xlsx
-    {archive = ar
-    }
+  ss <- runResourceT $ getSharedStrings ar
+  return $ Xlsx ar ss
 
-parseSheet x@(Xlsx{..}) sheetId columns
+
+parseSheet (Xlsx{archive=ar,sharedStrings=ss}) sheetId columns
   | sheetId < 0 || sheetId >= length sheets
     = error "parseSheet: Invalid sheetId"
   | otherwise
-    = case xmlSource x (sheets !! sheetId) of
+    = case xmlSource ar (sheets !! sheetId) of
       Nothing -> error "An impossible happened"
-      Just xml -> xml $= mkXmlCond getCell $$ CL.consume
+      Just xml -> xml $= mkXmlCond (getCell ss) $$ CL.consume
   where
     sheets = sort
       $ filter (isPrefixOf "xl/worksheets")
-      $ Zip.filesInArchive archive
+      $ Zip.filesInArchive ar
 
 
-getCell = Xml.tagName (n"c") cAttrs cParser
+getCell ss = Xml.tagName (n"c") cAttrs cParser
   where
     cAttrs = do
       cellId  <- Xml.requireAttr  "r"
@@ -83,9 +83,11 @@ getCell = Xml.tagName (n"c") cAttrs cParser
     cParser a@(cellId,style,sharing) = do
       val <- case sharing of
           Just "inlineStr" -> tagSeq ["is", "t"]
-          Just "s" -> tagSeq ["v"] >> return (Just "shared str")
+          Just "s" -> tagSeq ["v"]
+            >>= return . join . fmap ((`M.lookup` ss).int)
           Nothing  -> tagSeq ["v"]
       return $ Cell cellId (int style) val
+
 
 n x = Name
   {nameLocalName = x
@@ -101,17 +103,17 @@ tagSeq (x:xs)
 int = either error fst . T.decimal 
 
 
-xmlSource (Xlsx{..}) fname
+xmlSource ar fname
   =   Xml.parseLBS Xml.def
   .   Zip.fromEntry
-  <$> Zip.findEntryByPath fname archive
+  <$> Zip.findEntryByPath fname ar
 
 
 -- Get shared strings (if there are some) into IntMap
-parseSharedStrings
+getSharedStrings
   :: ResourceThrow m
-  => Xlsx -> ResourceT m (M.IntMap Text)
-parseSharedStrings x
+  => Zip.Archive -> ResourceT m (M.IntMap Text)
+getSharedStrings x
   = case xmlSource x "xl/sharedStrings.xml" of
     Nothing -> return M.empty
     Just xml -> (M.fromAscList . zip [0..]) <$> xmlToText xml
