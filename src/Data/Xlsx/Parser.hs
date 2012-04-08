@@ -1,16 +1,22 @@
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
+
 module Data.Xlsx.Parser where
 
+import Prelude hiding (sequence)
 import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Monad (join)
 import Data.Char (ord)
 import Data.List
+import Data.Maybe
+import Data.Ord
 import Data.Function (on)
 import qualified Data.IntMap as M
 import qualified Data.IntSet as S
+import qualified Data.Map as Map
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -36,14 +42,12 @@ data Columns
 
 data Cell = Cell
   {cellIx :: (Text, Int)
-  ,style  :: Int
+  ,style  :: Maybe Int
   ,value  :: Maybe Text
   }
   deriving Show
 
-
-data Value
-  = Str Text
+type MapRow = Map.Map Text Text
 
 
 -- | Read archive and preload sharedStrings
@@ -62,6 +66,43 @@ sheet x sheetId cols
   $= groupRows
 
 
+-- | Get all rows from specified worksheet.
+sheetRows :: ResourceThrow m => Xlsx -> Int -> Source m MapRow
+sheetRows x sheetId
+  =  getSheetCells x sheetId
+  $= groupRows
+  $= reverseRows
+  $= mkMapRows
+
+
+-- | Make 'Conduit' from 'mkMapRowsSink'.
+mkMapRows :: Resource m => Conduit [Cell] m MapRow
+mkMapRows = sequence mkMapRowsSink =$= CL.concatMap id
+
+
+-- | Make 'MapRow' from list of 'Cell's.
+mkMapRowsSink :: Resource m => Sink [Cell] m [MapRow]
+mkMapRowsSink = do
+    header <- fromMaybe [] <$> CL.head
+    rows   <- CL.consume
+
+    return $ map (mkMapRow header) rows
+  where
+    mkMapRow header row = Map.fromList $ zipCells header row
+
+    zipCells :: [Cell] -> [Cell] -> [(Text, Text)]
+    zipCells []            _          = []
+    zipCells header        []         = map (\h -> (txt h, "")) header
+    zipCells header@(h:hs) row@(r:rs) =
+        case comparing (fst . cellIx) h r of
+          LT -> (txt h , ""   ) : zipCells hs     row
+          EQ -> (txt h , txt r) : zipCells hs     rs
+          GT -> (""    , txt r) : zipCells header rs
+
+    txt = fromMaybe "" . value
+
+
+reverseRows = CL.map reverse
 groupRows = CL.groupBy ((==) `on` (snd.cellIx))
 filterColumns cs = CL.filter ((`S.member` cs) . col2int . fst . cellIx)
 col2int = T.foldl' (\n c -> n*26 + ord c - ord 'A' + 1) 0
@@ -89,7 +130,7 @@ getCell ss = Xml.tagName (n"c") cAttrs cParser
   where
     cAttrs = do
       cellIx  <- Xml.requireAttr  "r"
-      style   <- Xml.requireAttr  "s"
+      style   <- Xml.optionalAttr "s"
       sharing <- Xml.optionalAttr "t"
       Xml.ignoreAttrs
       return (cellIx,style,sharing)
@@ -100,7 +141,7 @@ getCell ss = Xml.tagName (n"c") cAttrs cParser
           Just "s" -> tagSeq ["v"]
             >>= return . join . fmap ((`M.lookup` ss).int)
           Nothing  -> tagSeq ["v"]
-      return $ Cell (mkCellIx ix) (int style) val
+      return $ Cell (mkCellIx ix) (int <$> style) val
 
     mkCellIx ix = let (c,r) = T.span (>'9') ix
                   in (c,int r)
