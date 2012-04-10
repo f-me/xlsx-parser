@@ -35,9 +35,9 @@ Library
   Exposed-modules:   Data.Xlsx.Parser
   
   Build-depends:     base, containers, transformers, bytestring, text
-                    ,conduit     == 0.2.*
+                    ,conduit     == 0.4.*
                     ,xml-types   == 0.3.*
-                    ,xml-conduit == 0.5.*
+                    ,xml-conduit == 0.7.*
                     ,zip-archive == 0.1.*
   
   -- Modules not exported by this package.

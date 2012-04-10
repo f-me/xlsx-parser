@@ -23,6 +23,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Read as T
 import qualified Data.ByteString.Lazy as L
 
+--import Control.Monad.Trans.Resource (MonadThrow)
 import Data.Conduit
 import Data.XML.Types
 import qualified Data.Conduit.List as CL
@@ -59,7 +60,7 @@ xlsx fname = do
 
 
 -- | Get data from specified worksheet. 
-sheet :: ResourceThrow m => Xlsx -> Int -> [Text] -> Source m [Cell]
+sheet :: MonadThrow m => Xlsx -> Int -> [Text] -> Source m [Cell]
 sheet x sheetId cols
   =  getSheetCells x sheetId
   $= filterColumns (S.fromList $ map col2int cols)
@@ -67,7 +68,7 @@ sheet x sheetId cols
 
 
 -- | Get all rows from specified worksheet.
-sheetRows :: ResourceThrow m => Xlsx -> Int -> Source m MapRow
+sheetRows :: MonadThrow m => Xlsx -> Int -> Source m MapRow
 sheetRows x sheetId
   =  getSheetCells x sheetId
   $= groupRows
@@ -76,12 +77,12 @@ sheetRows x sheetId
 
 
 -- | Make 'Conduit' from 'mkMapRowsSink'.
-mkMapRows :: Resource m => Conduit [Cell] m MapRow
+mkMapRows :: Monad m => Conduit [Cell] m MapRow
 mkMapRows = sequence mkMapRowsSink =$= CL.concatMap id
 
 
 -- | Make 'MapRow' from list of 'Cell's.
-mkMapRowsSink :: Resource m => Sink [Cell] m [MapRow]
+mkMapRowsSink :: Monad m => Sink [Cell] m [MapRow]
 mkMapRowsSink = do
     header <- fromMaybe [] <$> CL.head
     rows   <- CL.consume
@@ -109,7 +110,7 @@ col2int = T.foldl' (\n c -> n*26 + ord c - ord 'A' + 1) 0
 
 
 getSheetCells
-  :: ResourceThrow m => Xlsx -> Int -> Source m Cell
+ :: MonadThrow m => Xlsx -> Int -> Source m Cell
 getSheetCells (Xlsx{archive=ar,sharedStrings=ss}) sheetId
   | sheetId < 0 || sheetId >= length sheets
     = error "parseSheet: Invalid sheetId"
@@ -125,7 +126,7 @@ getSheetCells (Xlsx{archive=ar,sharedStrings=ss}) sheetId
 
 -- | Parse single cell from xml stream.
 getCell
-  :: ResourceThrow m => M.IntMap Text -> Sink Event m (Maybe Cell)
+ :: MonadThrow m => M.IntMap Text -> Sink Event m (Maybe Cell)
 getCell ss = Xml.tagName (n"c") cAttrs cParser
   where
     cAttrs = do
@@ -155,7 +156,7 @@ n x = Name
 
 
 -- | Get text from several nested tags
-tagSeq :: ResourceThrow m => [Text] -> Sink Event m (Maybe Text)
+tagSeq :: MonadThrow m => [Text] -> Sink Event m (Maybe Text)
 tagSeq (x:xs)
   = Xml.tagNoAttr (n x)
   $ foldr (\x -> Xml.force "" . Xml.tagNoAttr (n x)) Xml.content xs
@@ -163,7 +164,7 @@ tagSeq (x:xs)
 
 -- | Get xml event stream from the specified file inside the zip archive.
 xmlSource
-  :: ResourceThrow m => Zip.Archive -> FilePath -> Maybe (Source m Event)
+ :: MonadThrow m => Zip.Archive -> FilePath -> Maybe (Source m Event)
 xmlSource ar fname
   =   Xml.parseLBS Xml.def
   .   Zip.fromEntry
@@ -172,8 +173,8 @@ xmlSource ar fname
 
 -- Get shared strings (if there are some) into IntMap.
 getSharedStrings
-  :: ResourceThrow m
-  => Zip.Archive -> ResourceT m (M.IntMap Text)
+  :: (MonadThrow m, Functor m)
+  => Zip.Archive -> m (M.IntMap Text)
 getSharedStrings x
   = case xmlSource x "xl/sharedStrings.xml" of
     Nothing -> return M.empty
