@@ -14,7 +14,7 @@ Description:
 Homepage:            https://github.com/f-me/xlsx-parser
 License:             MIT
 License-file:        LICENSE
-Author:              Tim, Max
+Author:              Timofey Cherganov, Max Taldykin
 Maintainer:          max@formalmethods.ru
 
 
@@ -27,18 +27,22 @@ Build-type:          Simple
 -- Extra-source-files:  
 
 -- Constraint on the version of Cabal needed to build this package.
-Cabal-version:       >=1.2
+Cabal-version:       >=1.6
 
 
 Library
   Hs-source-dirs:    src
   Exposed-modules:   Data.Xlsx.Parser
   
-  Build-depends:     base, containers, transformers, bytestring, text
-                    ,conduit     == 0.4.*
-                    ,xml-types   == 0.3.*
-                    ,xml-conduit == 0.7.*
-                    ,zip-archive == 0.1.*
+  Build-depends:     base
+                    ,containers   >= 0.4.1
+                    ,transformers == 0.2.*
+                    ,bytestring, text
+                    ,conduit      == 0.4.*
+                    ,xml-types    == 0.3.*
+                    ,xml-conduit  == 0.7.*
+                    ,mtl          == 2.0.*
+                    ,zip-archive  == 0.1.*
   
   -- Modules not exported by this package.
   -- Other-modules:       
