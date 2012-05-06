@@ -30,6 +30,8 @@ import qualified Data.Conduit.List as CL
 import qualified Text.XML.Stream.Parse as Xml
 import qualified Codec.Archive.Zip as Zip
 
+import System.FilePath
+
 
 data Xlsx
   = Xlsx
@@ -120,7 +122,7 @@ getSheetCells (Xlsx{archive=ar,sharedStrings=ss}) sheetId
       Just xml -> xml $= mkXmlCond (getCell ss)
   where
     sheets = sort
-      $ filter (isPrefixOf "xl/worksheets")
+      $ filter ((== "xl/worksheets") . takeDirectory)
       $ Zip.filesInArchive ar
 
 
